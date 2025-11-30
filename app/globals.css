@@ -1,0 +1,270 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* =============================================================================
+   SIERRAVAULT BRAND THEME
+   Colors: Navy (#0A2A43), Teal (#2DC5A0), Sierra Leone flag accents
+   ============================================================================= */
+
+:root {
+  /* Primary brand colors */
+  --navy: #0a2a43;
+  --navy-light: #0f3654;
+  --navy-dark: #061b2e;
+  --teal: #2dc5a0;
+  --teal-light: #3dd9b2;
+  --teal-dark: #25a386;
+
+  /* Sierra Leone flag colors */
+  --flag-green: #1eb53a;
+  --flag-blue: #0072c6;
+
+  /* Semantic tokens - Light mode (though we default to dark) */
+  --background: #0a2a43;
+  --foreground: #f8fafc;
+  --card: #0f3654;
+  --card-foreground: #f8fafc;
+  --popover: #0f3654;
+  --popover-foreground: #f8fafc;
+  --primary: #2dc5a0;
+  --primary-foreground: #061b2e;
+  --secondary: #1e3a52;
+  --secondary-foreground: #f8fafc;
+  --muted: #1e3a52;
+  --muted-foreground: #94a3b8;
+  --accent: #2dc5a0;
+  --accent-foreground: #061b2e;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.1);
+  --ring: #2dc5a0;
+
+  /* Chart colors */
+  --chart-1: #2dc5a0;
+  --chart-2: #0072c6;
+  --chart-3: #1eb53a;
+  --chart-4: #f59e0b;
+  --chart-5: #9945ff;
+
+  --radius: 0.625rem;
+
+  /* Sidebar */
+  --sidebar: #061b2e;
+  --sidebar-foreground: #f8fafc;
+  --sidebar-primary: #2dc5a0;
+  --sidebar-primary-foreground: #061b2e;
+  --sidebar-accent: #0f3654;
+  --sidebar-accent-foreground: #f8fafc;
+  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-ring: #2dc5a0;
+}
+
+/* Dark mode - same as root since we're dark-first */
+.dark {
+  --background: #0a2a43;
+  --foreground: #f8fafc;
+  --card: #0f3654;
+  --card-foreground: #f8fafc;
+  --popover: #0f3654;
+  --popover-foreground: #f8fafc;
+  --primary: #2dc5a0;
+  --primary-foreground: #061b2e;
+  --secondary: #1e3a52;
+  --secondary-foreground: #f8fafc;
+  --muted: #1e3a52;
+  --muted-foreground: #94a3b8;
+  --accent: #2dc5a0;
+  --accent-foreground: #061b2e;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.1);
+  --ring: #2dc5a0;
+}
+
+@theme inline {
+  --font-sans: "Inter", "Inter Fallback", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "JetBrains Mono Fallback", monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Custom brand colors for Tailwind */
+  --color-navy: #0a2a43;
+  --color-navy-light: #0f3654;
+  --color-navy-dark: #061b2e;
+  --color-teal: #2dc5a0;
+  --color-teal-light: #3dd9b2;
+  --color-teal-dark: #25a386;
+  --color-flag-green: #1eb53a;
+  --color-flag-blue: #0072c6;
+  --color-solana: #9945ff;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--navy-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--teal);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--teal-light);
+}
+
+/* Vault animation keyframes */
+@keyframes vault-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(45, 197, 160, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(45, 197, 160, 0.6);
+  }
+}
+
+@keyframes vault-door-open {
+  0% {
+    transform: perspective(1000px) rotateY(0deg);
+  }
+  100% {
+    transform: perspective(1000px) rotateY(-105deg);
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.3;
+  }
+  100% {
+    transform: scale(0.9);
+    opacity: 0.7;
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-vault-glow {
+  animation: vault-glow 3s ease-in-out infinite;
+}
+
+.animate-vault-open {
+  animation: vault-door-open 1.5s ease-out forwards;
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 2s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* Glass effect */
+.glass {
+  background: rgba(15, 54, 84, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-dark {
+  background: rgba(6, 27, 46, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Gradient text */
+.text-gradient {
+  background: linear-gradient(135deg, #2dc5a0 0%, #3dd9b2 50%, #0072c6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-flag {
+  background: linear-gradient(135deg, #1eb53a 0%, #ffffff 50%, #0072c6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
