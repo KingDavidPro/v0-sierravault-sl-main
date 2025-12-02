@@ -1,0 +1,26 @@
+{
+  "name": "SierraVault",
+  "short_name": "SierraVault",
+  "description": "Your Documents. Always Safe. Always Verifiable.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A2A43",
+  "theme_color": "#2DC5A0",
+  "icons": [
+    {
+      "src": "/sierravault-icon-192.jpg",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/sierravault-icon-512.jpg",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/sierravault-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

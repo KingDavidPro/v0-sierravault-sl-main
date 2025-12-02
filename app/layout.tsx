@@ -21,6 +21,14 @@ export const metadata: Metadata = {
   keywords: ["Sierra Leone", "digital vault", "document verification", "blockchain", "AI scanning", "secure storage"],
   authors: [{ name: "SierraVault" }],
   creator: "SierraVault",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/sierravault-icon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/apple-touch-icon.jpg",
+  },
+  manifest: "/manifest.json",
   openGraph: {
     type: "website",
     locale: "en_US",
@@ -36,7 +44,7 @@ export const metadata: Metadata = {
     description:
       "Empower every Sierra Leonean with a secure, verifiable digital copy of their most important life documents.",
   },
-    generator: 'v0.app'
+  generator: "v0.app",
 }
 
 export const viewport: Viewport = {

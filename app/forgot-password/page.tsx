@@ -4,31 +4,21 @@ import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import {
-  Shield,
-  ArrowLeft,
-  CreditCard,
-  Phone,
-  Lock,
-  Eye,
-  EyeOff,
-  CheckCircle,
-  AlertTriangle,
-  RefreshCw,
-} from "lucide-react"
+import { Shield, ArrowLeft, Mail, Phone, Lock, Eye, EyeOff, CheckCircle, AlertTriangle, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { forgotPasswordValidateNIN, verifyOTP, resetPassword } from "@/lib/auth-mock"
 
-type Step = "nin" | "otp" | "password" | "success"
+type Step = "identifier" | "otp" | "password" | "success"
+type Method = "email" | "phone"
 
 export default function ForgotPasswordPage() {
   const router = useRouter()
-  const [step, setStep] = useState<Step>("nin")
+  const [step, setStep] = useState<Step>("identifier")
+  const [method, setMethod] = useState<Method>("email")
   const [isLoading, setIsLoading] = useState(false)
-  const [nin, setNin] = useState("")
-  const [phone, setPhone] = useState("")
+  const [identifier, setIdentifier] = useState("")
+  const [maskedIdentifier, setMaskedIdentifier] = useState("")
   const [otp, setOtp] = useState(["", "", "", ""])
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -48,20 +38,27 @@ export default function ForgotPasswordPage() {
     }
   }, [countdown, step])
 
-  // Step 1: Validate NIN
-  const handleNINSubmit = async (e: React.FormEvent) => {
+  // Step 1: Validate Email or Phone
+  const handleIdentifierSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError(null)
 
-    const result = await forgotPasswordValidateNIN(nin)
+    await new Promise((resolve) => setTimeout(resolve, 1500))
 
-    if (result.success) {
-      setPhone(result.phone || "")
+    // Mock validation
+    if (identifier) {
+      // Mask the identifier for display
+      if (method === "email") {
+        const [local, domain] = identifier.split("@")
+        setMaskedIdentifier(`${local.slice(0, 2)}***@${domain}`)
+      } else {
+        setMaskedIdentifier(`${identifier.slice(0, 6)}***${identifier.slice(-2)}`)
+      }
       setStep("otp")
       setCountdown(300)
     } else {
-      setError(result.error || "NIN validation failed")
+      setError(`Please enter a valid ${method === "email" ? "email address" : "phone number"}`)
     }
 
     setIsLoading(false)
@@ -100,12 +97,13 @@ export default function ForgotPasswordPage() {
     setIsLoading(true)
     setError(null)
 
-    const result = await verifyOTP(otpValue)
+    await new Promise((resolve) => setTimeout(resolve, 1500))
 
-    if (result.success) {
+    // Mock: "1234" is correct
+    if (otpValue === "1234") {
       setStep("password")
     } else {
-      setError(result.error || "Invalid OTP. Please enter the correct code.")
+      setError("Invalid OTP. Please enter the correct code.")
       setOtp(["", "", "", ""])
       inputRefs.current[0]?.focus()
     }
@@ -130,13 +128,8 @@ export default function ForgotPasswordPage() {
 
     setIsLoading(true)
 
-    const result = await resetPassword(nin, password)
-
-    if (result.success) {
-      setStep("success")
-    } else {
-      setError(result.error || "Password reset failed")
-    }
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+    setStep("success")
 
     setIsLoading(false)
   }
@@ -207,7 +200,7 @@ export default function ForgotPasswordPage() {
 
           {/* Step Indicator */}
           <div className="flex items-center justify-center gap-2 mb-8">
-            {["nin", "otp", "password"].map((s, i) => (
+            {["identifier", "otp", "password"].map((s, i) => (
               <div key={s} className="flex items-center">
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
@@ -239,28 +232,54 @@ export default function ForgotPasswordPage() {
             </div>
           )}
 
-          {/* Step 1: NIN */}
-          {step === "nin" && (
+          {/* Step 1: Email or Phone */}
+          {step === "identifier" && (
             <>
               <div className="text-center mb-6">
                 <h1 className="text-2xl font-bold text-gray-800">Forgot Password?</h1>
-                <p className="mt-2 text-gray-500">Enter your NIN to reset your password</p>
+                <p className="mt-2 text-gray-500">Enter your email or phone to reset your password</p>
               </div>
 
-              <form onSubmit={handleNINSubmit} className="space-y-5">
+              {/* Method Toggle */}
+              <div className="flex bg-gray-100 rounded-lg p-1 mb-6">
+                <button
+                  type="button"
+                  onClick={() => setMethod("email")}
+                  className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+                    method === "email" ? "bg-white text-gray-800 shadow-sm" : "text-gray-500"
+                  }`}
+                >
+                  Email
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMethod("phone")}
+                  className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+                    method === "phone" ? "bg-white text-gray-800 shadow-sm" : "text-gray-500"
+                  }`}
+                >
+                  Phone
+                </button>
+              </div>
+
+              <form onSubmit={handleIdentifierSubmit} className="space-y-5">
                 <div className="space-y-2">
-                  <Label htmlFor="nin" className="text-gray-700">
-                    National Identification Number
+                  <Label htmlFor="identifier" className="text-gray-700">
+                    {method === "email" ? "Email Address" : "Phone Number"}
                   </Label>
                   <div className="relative">
-                    <CreditCard className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    {method === "email" ? (
+                      <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    ) : (
+                      <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    )}
                     <Input
-                      id="nin"
-                      type="text"
-                      placeholder="SL-19900101-001"
+                      id="identifier"
+                      type={method === "email" ? "email" : "tel"}
+                      placeholder={method === "email" ? "your.email@example.com" : "+232 76 123 4567"}
                       className="pl-10 h-12 bg-gray-50 border-gray-200 text-gray-800 placeholder:text-gray-400 rounded-lg focus:border-[#2DC5A0] focus:ring-[#2DC5A0]"
-                      value={nin}
-                      onChange={(e) => setNin(e.target.value)}
+                      value={identifier}
+                      onChange={(e) => setIdentifier(e.target.value)}
                       required
                     />
                   </div>
@@ -282,11 +301,15 @@ export default function ForgotPasswordPage() {
             <>
               <div className="text-center mb-6">
                 <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#2DC5A0]/10">
-                  <Phone className="h-7 w-7 text-[#2DC5A0]" />
+                  {method === "email" ? (
+                    <Mail className="h-7 w-7 text-[#2DC5A0]" />
+                  ) : (
+                    <Phone className="h-7 w-7 text-[#2DC5A0]" />
+                  )}
                 </div>
                 <h1 className="text-2xl font-bold text-gray-800">Verify OTP</h1>
                 <p className="mt-2 text-gray-500">
-                  Enter the 4-digit code sent to <span className="font-medium text-gray-700">{phone}</span>
+                  Enter the 4-digit code sent to <span className="font-medium text-gray-700">{maskedIdentifier}</span>
                 </p>
               </div>
 
