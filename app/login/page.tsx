@@ -8,7 +8,6 @@ import { Shield, Eye, EyeOff, Lock, Mail, Phone, CreditCard, AlertTriangle, Mic 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { MockAuthService } from "@/lib/mock-auth"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -42,38 +41,49 @@ export default function LoginPage() {
     setError(null)
     setIsLoading(true)
 
+    // Validate that either email or phone is provided
     const identifier = loginMethod === "email" ? formData.email : formData.phone
-    if (!identifier || !formData.password) {
-      setError(`Please enter your ${loginMethod === "email" ? "email address" : "phone number"} and password`)
+    if (!identifier) {
+      setError(`Please enter your ${loginMethod === "email" ? "email address" : "phone number"}`)
       setIsLoading(false)
       return
     }
 
-    try {
-      const response = await MockAuthService.loginUser(identifier, formData.password, formData.nin)
+    // Simulate API call
+    await new Promise((resolve) => setTimeout(resolve, 1500))
 
-      if (response.success) {
-        // Success - clear attempts and redirect
-        sessionStorage.removeItem("loginAttempts")
-        router.push("/dashboard")
+    // Mock login logic
+    // In real app, this would call the auth API
+    const mockAttempts = Number.parseInt(sessionStorage.getItem("loginAttempts") || "0")
+
+    // Demo: correct credentials
+    const isValid =
+      (formData.email === "demo@example.com" || formData.phone === "+232761234567") &&
+      formData.password === "password123"
+
+    if (isValid) {
+      sessionStorage.removeItem("loginAttempts")
+      router.push("/dashboard")
+    } else {
+      const newAttempts = mockAttempts + 1
+      sessionStorage.setItem("loginAttempts", newAttempts.toString())
+
+      if (newAttempts >= 4) {
+        setError("Invalid login credentials. Please try again after 24 hours.")
+        setLockoutMinutes(1440) // 24 hours
+        setCountdown(1440 * 60)
+      } else if (newAttempts >= 3) {
+        setError("Too many invalid attempts. Please try after 5 minutes.")
+        setLockoutMinutes(5)
+        setCountdown(5 * 60)
+        setAttemptsRemaining(0)
       } else {
-        // Handle error with lockout logic
-        setError(response.error || "Invalid credentials")
-
-        // Parse lockout info from error message
-        if (response.error?.includes("24 hours")) {
-          setLockoutMinutes(1440)
-          setCountdown(1440 * 60)
-        } else if (response.error?.includes("5 minutes")) {
-          setLockoutMinutes(5)
-          setCountdown(5 * 60)
-        }
+        setError("Invalid credentials. Please check your email/phone and password.")
+        setAttemptsRemaining(3 - newAttempts)
       }
-    } catch (err) {
-      setError("An unexpected error occurred. Please try again.")
-    } finally {
-      setIsLoading(false)
     }
+
+    setIsLoading(false)
   }
 
   const formatCountdown = (seconds: number) => {

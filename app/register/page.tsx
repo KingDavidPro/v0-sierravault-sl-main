@@ -22,7 +22,6 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { MockAuthService } from "@/lib/mock-auth"
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -67,34 +66,25 @@ export default function RegisterPage() {
 
     setIsLoading(true)
 
-    try {
-      const response = await MockAuthService.registerUser({
-        email: formData.email,
-        phone: formData.phone,
-        password: formData.password,
-        nin: formData.nin || undefined,
-        firstName: formData.fullName.split(" ")[0],
-        lastName: formData.fullName.split(" ").slice(1).join(" "),
-        dateOfBirth: formData.dob || undefined,
-      })
+    // Simulate API call
+    await new Promise((resolve) => setTimeout(resolve, 1500))
 
-      if (response.success) {
-        // Send OTP
-        await MockAuthService.sendOTP(formData.phone)
-        setSuccess(`An OTP code has been sent to ${formData.phone}. Please verify your phone number.`)
-        sessionStorage.setItem("registerData", JSON.stringify(formData))
-
-        setTimeout(() => {
-          router.push("/register-otp")
-        }, 2000)
-      } else {
-        setError({ message: response.error || "Registration failed", type: "exists" })
-      }
-    } catch (err) {
-      setError({ message: "An unexpected error occurred. Please try again.", type: "error" })
-    } finally {
+    // Mock: Check if account exists
+    if (formData.email === "existing@example.com") {
+      setError({ message: "An account already exists with this email. Please sign in.", type: "exists" })
       setIsLoading(false)
+      return
     }
+
+    // Success - send OTP
+    setSuccess(`An OTP code has been sent to ${formData.phone}. Please verify your phone number.`)
+    sessionStorage.setItem("registerData", JSON.stringify(formData))
+
+    setTimeout(() => {
+      router.push("/register-otp")
+    }, 2000)
+
+    setIsLoading(false)
   }
 
   return (
