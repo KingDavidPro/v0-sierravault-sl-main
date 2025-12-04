@@ -8,96 +8,65 @@ import { Shield, Eye, EyeOff, Lock, Mail, Phone, CreditCard, AlertTriangle, Mic 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { useToast } from "@/lib/use-toast"
 
 export default function LoginPage() {
   const router = useRouter()
+  const { showToast } = useToast()
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [loginMethod, setLoginMethod] = useState<"email" | "phone">("email")
   const [formData, setFormData] = useState({
-    email: "",
-    phone: "",
+    identifier: "",
     password: "",
-    nin: "", // Optional
   })
-  const [error, setError] = useState<string | null>(null)
-  const [lockoutMinutes, setLockoutMinutes] = useState<number | null>(null)
-  const [countdown, setCountdown] = useState<number>(0)
-  const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null)
-
-  // Countdown timer for lockout
-  useEffect(() => {
-    if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown(countdown - 1), 1000)
-      return () => clearTimeout(timer)
-    } else if (countdown === 0 && lockoutMinutes) {
-      setLockoutMinutes(null)
-      setError(null)
-    }
-  }, [countdown, lockoutMinutes])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError(null)
-    setIsLoading(true)
 
-    // Validate that either email or phone is provided
-    const identifier = loginMethod === "email" ? formData.email : formData.phone
-    if (!identifier) {
-      setError(`Please enter your ${loginMethod === "email" ? "email address" : "phone number"}`)
-      setIsLoading(false)
+    if (!formData.identifier || !formData.password) {
+      showToast("error", "Validation Error", "Please enter your identifier and password.")
       return
     }
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    setIsLoading(true)
 
-    // Mock login logic
-    // In real app, this would call the auth API
-    const mockAttempts = Number.parseInt(sessionStorage.getItem("loginAttempts") || "0")
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          identifier: formData.identifier,
+          password: formData.password,
+        }),
+      })
 
-    // Demo: correct credentials
-    const isValid =
-      (formData.email === "demo@example.com" || formData.phone === "+232761234567") &&
-      formData.password === "password123"
+      const data = await response.json()
 
-    if (isValid) {
-      sessionStorage.removeItem("loginAttempts")
-      router.push("/dashboard")
-    } else {
-      const newAttempts = mockAttempts + 1
-      sessionStorage.setItem("loginAttempts", newAttempts.toString())
-
-      if (newAttempts >= 4) {
-        setError("Invalid login credentials. Please try again after 24 hours.")
-        setLockoutMinutes(1440) // 24 hours
-        setCountdown(1440 * 60)
-      } else if (newAttempts >= 3) {
-        setError("Too many invalid attempts. Please try after 5 minutes.")
-        setLockoutMinutes(5)
-        setCountdown(5 * 60)
-        setAttemptsRemaining(0)
-      } else {
-        setError("Invalid credentials. Please check your email/phone and password.")
-        setAttemptsRemaining(3 - newAttempts)
+      if (!response.ok) {
+        showToast("error", "Login Failed", data.error || "Invalid login credentials.")
+        setIsLoading(false)
+        return
       }
+
+      // Store token and user data
+      if (data.token) {
+        localStorage.setItem("token", data.token)
+        localStorage.setItem("user", JSON.stringify(data.user))
+      }
+
+      showToast("success", "Login Successful", "Welcome back!")
+      
+      setTimeout(() => {
+        router.push("/dashboard")
+      }, 1000)
+    } catch (error) {
+      showToast("error", "Login Failed", "An unexpected error occurred. Please try again.")
+    } finally {
+      setIsLoading(false)
     }
-
-    setIsLoading(false)
   }
-
-  const formatCountdown = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    if (mins >= 60) {
-      const hours = Math.floor(mins / 60)
-      const remainingMins = mins % 60
-      return `${hours}h ${remainingMins}m`
-    }
-    return `${mins}:${secs.toString().padStart(2, "0")}`
-  }
-
-  const isLocked = countdown > 0
 
   return (
     <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4">
@@ -264,115 +233,25 @@ export default function LoginPage() {
               <h2 className="text-2xl font-bold text-gray-800 text-center mb-2">Login</h2>
               <p className="text-gray-500 text-center mb-6">Sign in to your account</p>
 
-              {/* Login Method Toggle */}
-              <div className="flex bg-gray-100 rounded-lg p-1 mb-6">
-                <button
-                  type="button"
-                  onClick={() => setLoginMethod("email")}
-                  className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
-                    loginMethod === "email" ? "bg-white text-gray-800 shadow-sm" : "text-gray-500"
-                  }`}
-                >
-                  Email
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLoginMethod("phone")}
-                  className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
-                    loginMethod === "phone" ? "bg-white text-gray-800 shadow-sm" : "text-gray-500"
-                  }`}
-                >
-                  Phone
-                </button>
-              </div>
-
-              {/* Error/Lockout Message */}
-              {error && (
-                <div
-                  className={`mb-6 p-4 rounded-lg flex items-start gap-3 ${
-                    lockoutMinutes && lockoutMinutes >= 60
-                      ? "bg-red-50 border border-red-200"
-                      : lockoutMinutes
-                        ? "bg-amber-50 border border-amber-200"
-                        : "bg-red-50 border border-red-200"
-                  }`}
-                >
-                  <AlertTriangle
-                    className={`h-5 w-5 mt-0.5 flex-shrink-0 ${
-                      lockoutMinutes && lockoutMinutes >= 60
-                        ? "text-red-500"
-                        : lockoutMinutes
-                          ? "text-amber-500"
-                          : "text-red-500"
-                    }`}
-                  />
-                  <div>
-                    <p
-                      className={`text-sm font-medium ${
-                        lockoutMinutes && lockoutMinutes >= 60
-                          ? "text-red-800"
-                          : lockoutMinutes
-                            ? "text-amber-800"
-                            : "text-red-800"
-                      }`}
-                    >
-                      {error}
-                    </p>
-                    {isLocked && (
-                      <p className="text-sm mt-1 text-gray-600">
-                        Time remaining: <span className="font-mono font-bold">{formatCountdown(countdown)}</span>
-                      </p>
-                    )}
-                    {attemptsRemaining !== null && attemptsRemaining > 0 && !isLocked && (
-                      <p className="text-sm mt-1 text-gray-600">
-                        {attemptsRemaining} attempt{attemptsRemaining !== 1 ? "s" : ""} remaining
-                      </p>
-                    )}
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Identifier (Email, Phone, or NIN) */}
+                <div className="space-y-1">
+                  <Label htmlFor="identifier" className="text-gray-700 text-sm">
+                    Email, Phone, or NIN
+                  </Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                    <Input
+                      id="identifier"
+                      type="text"
+                      placeholder="your.email@example.com, +232 76 123 4567, or NIN"
+                      className="pl-11 h-12 bg-gray-50 border-gray-200 text-gray-800 placeholder:text-gray-400 rounded-lg focus:border-[#2DC5A0] focus:ring-[#2DC5A0]"
+                      value={formData.identifier}
+                      onChange={(e) => setFormData({ ...formData, identifier: e.target.value })}
+                      required
+                    />
                   </div>
                 </div>
-              )}
-
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Email or Phone based on toggle */}
-                {loginMethod === "email" ? (
-                  <div className="space-y-1">
-                    <Label htmlFor="email" className="text-gray-700 text-sm">
-                      Email Address
-                    </Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-                      <Input
-                        id="email"
-                        type="email"
-                        placeholder="your.email@example.com"
-                        className="pl-11 h-12 bg-gray-50 border-gray-200 text-gray-800 placeholder:text-gray-400 rounded-lg focus:border-[#2DC5A0] focus:ring-[#2DC5A0]"
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        disabled={isLocked}
-                        required
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    <Label htmlFor="phone" className="text-gray-700 text-sm">
-                      Phone Number
-                    </Label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-                      <Input
-                        id="phone"
-                        type="tel"
-                        placeholder="+232 76 123 4567"
-                        className="pl-11 h-12 bg-gray-50 border-gray-200 text-gray-800 placeholder:text-gray-400 rounded-lg focus:border-[#2DC5A0] focus:ring-[#2DC5A0]"
-                        value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        disabled={isLocked}
-                        required
-                      />
-                    </div>
-                  </div>
-                )}
 
                 {/* Password */}
                 <div className="space-y-1">
@@ -388,7 +267,6 @@ export default function LoginPage() {
                       className="pl-11 pr-11 h-12 bg-gray-50 border-gray-200 text-gray-800 placeholder:text-gray-400 rounded-lg focus:border-[#2DC5A0] focus:ring-[#2DC5A0]"
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      disabled={isLocked}
                       required
                     />
                     <button
@@ -401,31 +279,12 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                {/* NIN (Optional) */}
-                <div className="space-y-1">
-                  <Label htmlFor="nin" className="text-gray-700 text-sm">
-                    NIN <span className="text-gray-400 text-xs">(Optional - for government documents)</span>
-                  </Label>
-                  <div className="relative">
-                    <CreditCard className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-                    <Input
-                      id="nin"
-                      type="text"
-                      placeholder="SL-19900101-001"
-                      className="pl-11 h-12 bg-gray-50 border-gray-200 text-gray-800 placeholder:text-gray-400 rounded-lg focus:border-[#2DC5A0] focus:ring-[#2DC5A0]"
-                      value={formData.nin}
-                      onChange={(e) => setFormData({ ...formData, nin: e.target.value })}
-                      disabled={isLocked}
-                    />
-                  </div>
-                </div>
-
                 <Button
                   type="submit"
                   className="w-full h-12 bg-gradient-to-r from-[#2DC5A0] to-[#25a386] text-white hover:from-[#25a386] hover:to-[#2DC5A0] font-semibold rounded-lg shadow-lg shadow-[#2DC5A0]/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={isLoading || isLocked}
+                  disabled={isLoading}
                 >
-                  {isLoading ? "Signing In..." : isLocked ? "Account Locked" : "Sign In"}
+                  {isLoading ? "Signing In..." : "Sign In"}
                 </Button>
               </form>
 

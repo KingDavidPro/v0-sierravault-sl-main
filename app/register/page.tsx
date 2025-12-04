@@ -22,69 +22,99 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { useToast } from "@/lib/use-toast"
 
 export default function RegisterPage() {
   const router = useRouter()
+  const { showToast } = useToast()
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
     email: "",
-    phone: "",
-    fullName: "",
+    telephone: "",
     password: "",
     confirmPassword: "",
-    // Optional fields
+    // Optional NIN fields
     nin: "",
+    surname: "",
     dob: "",
-    govId: "",
+    dateOfExpiry: "",
+    personalIdNumber: "",
   })
-  const [error, setError] = useState<{ message: string; type: string } | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError(null)
-    setSuccess(null)
 
     // Validate required fields
-    if (!formData.email || !formData.phone || !formData.fullName || !formData.password) {
-      setError({ message: "Please fill in all required fields.", type: "validation" })
+    if (!formData.email || !formData.telephone || !formData.password) {
+      showToast("error", "Validation Error", "Email, telephone and password are required.")
       return
     }
 
     // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
-      setError({ message: "Passwords do not match.", type: "mismatch" })
+      showToast("error", "Password Mismatch", "Passwords do not match.")
       return
     }
 
     // Validate password strength
     if (formData.password.length < 8) {
-      setError({ message: "Password must be at least 8 characters.", type: "validation" })
+      showToast("error", "Password Too Short", "Password must be at least 8 characters.")
       return
+    }
+
+    // If NIN is provided, validate all NIN fields are present
+    if (formData.nin) {
+      if (!formData.surname || !formData.dob || !formData.dateOfExpiry || !formData.personalIdNumber) {
+        showToast("error", "NIN Verification Required", "Complete NIN verification details are required when NIN is provided.")
+        return
+      }
     }
 
     setIsLoading(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    try {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          telephone: formData.telephone,
+          nin: formData.nin || undefined,
+          surname: formData.surname || undefined,
+          dob: formData.dob || undefined,
+          dateOfExpiry: formData.dateOfExpiry || undefined,
+          personalIdNumber: formData.personalIdNumber || undefined,
+        }),
+      })
 
-    // Mock: Check if account exists
-    if (formData.email === "existing@example.com") {
-      setError({ message: "An account already exists with this email. Please sign in.", type: "exists" })
+      const data = await response.json()
+
+      if (!response.ok) {
+        showToast("error", "Registration Failed", data.error || "An error occurred during registration.")
+        setIsLoading(false)
+        return
+      }
+
+      // Store token and user data
+      if (data.token) {
+        localStorage.setItem("token", data.token)
+        localStorage.setItem("user", JSON.stringify(data.user))
+      }
+
+      showToast("success", "Registration Successful", "Your account has been created successfully.")
+      
+      setTimeout(() => {
+        router.push("/dashboard")
+      }, 1500)
+    } catch (error) {
+      showToast("error", "Registration Failed", "An unexpected error occurred. Please try again.")
+    } finally {
       setIsLoading(false)
-      return
     }
-
-    // Success - send OTP
-    setSuccess(`An OTP code has been sent to ${formData.phone}. Please verify your phone number.`)
-    sessionStorage.setItem("registerData", JSON.stringify(formData))
-
-    setTimeout(() => {
-      router.push("/register-otp")
-    }, 2000)
-
-    setIsLoading(false)
   }
 
   return (
@@ -213,42 +243,6 @@ export default function RegisterPage() {
               <h2 className="text-2xl font-bold text-gray-800 text-center mb-2">Register</h2>
               <p className="text-gray-500 text-center mb-6">Create your secure account</p>
 
-              {/* Error Message */}
-              {error && (
-                <div
-                  className={`mb-6 p-4 rounded-lg flex items-start gap-3 ${
-                    error.type === "exists"
-                      ? "bg-blue-50 border border-blue-200"
-                      : "bg-amber-50 border border-amber-200"
-                  }`}
-                >
-                  {error.type === "exists" ? (
-                    <Info className="h-5 w-5 mt-0.5 flex-shrink-0 text-blue-500" />
-                  ) : (
-                    <AlertTriangle className="h-5 w-5 mt-0.5 flex-shrink-0 text-amber-500" />
-                  )}
-                  <div>
-                    <p
-                      className={`text-sm font-medium ${error.type === "exists" ? "text-blue-800" : "text-amber-800"}`}
-                    >
-                      {error.message}
-                    </p>
-                    {error.type === "exists" && (
-                      <Link href="/login" className="text-sm text-blue-600 hover:underline mt-1 inline-block">
-                        Go to login →
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Success Message */}
-              {success && (
-                <div className="mb-6 p-4 rounded-lg bg-green-50 border border-green-200 flex items-start gap-3">
-                  <CheckCircle className="h-5 w-5 mt-0.5 flex-shrink-0 text-green-500" />
-                  <p className="text-sm font-medium text-green-800">{success}</p>
-                </div>
-              )}
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Required Fields Section */}
@@ -281,37 +275,18 @@ export default function RegisterPage() {
 
                 {/* Phone Number */}
                 <div className="space-y-1">
-                  <Label htmlFor="phone" className="text-gray-700 text-sm">
+                  <Label htmlFor="telephone" className="text-gray-700 text-sm">
                     Phone Number <span className="text-red-500">*</span>
                   </Label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                     <Input
-                      id="phone"
+                      id="telephone"
                       type="tel"
                       placeholder="+232 76 123 4567"
                       className="pl-10 h-11 bg-gray-50 border-gray-200 text-gray-800 placeholder:text-gray-400 rounded-lg focus:border-[#2DC5A0] focus:ring-[#2DC5A0]"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Full Name */}
-                <div className="space-y-1">
-                  <Label htmlFor="fullName" className="text-gray-700 text-sm">
-                    Full Name <span className="text-red-500">*</span>
-                  </Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                    <Input
-                      id="fullName"
-                      type="text"
-                      placeholder="David Koroma Conteh"
-                      className="pl-10 h-11 bg-gray-50 border-gray-200 text-gray-800 placeholder:text-gray-400 rounded-lg focus:border-[#2DC5A0] focus:ring-[#2DC5A0]"
-                      value={formData.fullName}
-                      onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                      value={formData.telephone}
+                      onChange={(e) => setFormData({ ...formData, telephone: e.target.value })}
                       required
                     />
                   </div>
@@ -384,50 +359,95 @@ export default function RegisterPage() {
                     <Input
                       id="nin"
                       type="text"
-                      placeholder="SL-19900101-001"
+                      placeholder="1RB9DEWZ"
                       className="pl-10 h-11 bg-gray-50 border-gray-200 text-gray-800 placeholder:text-gray-400 rounded-lg focus:border-[#2DC5A0] focus:ring-[#2DC5A0]"
                       value={formData.nin}
                       onChange={(e) => setFormData({ ...formData, nin: e.target.value })}
                     />
                   </div>
+                  {formData.nin && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      If NIN is provided, all verification fields below are required.
+                    </p>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* Date of Birth (Optional) */}
-                  <div className="space-y-1">
-                    <Label htmlFor="dob" className="text-gray-700 text-sm">
-                      Date of Birth <span className="text-gray-400 text-xs">(Optional)</span>
-                    </Label>
-                    <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                      <Input
-                        id="dob"
-                        type="date"
-                        className="pl-10 h-11 bg-gray-50 border-gray-200 text-gray-800 rounded-lg focus:border-[#2DC5A0] focus:ring-[#2DC5A0]"
-                        value={formData.dob}
-                        onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                      />
+                {/* NIN Verification Fields (shown when NIN is provided) */}
+                {formData.nin && (
+                  <>
+                    <div className="space-y-1">
+                      <Label htmlFor="surname" className="text-gray-700 text-sm">
+                        Surname <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                        <Input
+                          id="surname"
+                          type="text"
+                          placeholder="Conteh"
+                          className="pl-10 h-11 bg-gray-50 border-gray-200 text-gray-800 placeholder:text-gray-400 rounded-lg focus:border-[#2DC5A0] focus:ring-[#2DC5A0]"
+                          value={formData.surname}
+                          onChange={(e) => setFormData({ ...formData, surname: e.target.value })}
+                          required={!!formData.nin}
+                        />
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Government ID (Optional) */}
-                  <div className="space-y-1">
-                    <Label htmlFor="govId" className="text-gray-700 text-sm">
-                      Government ID <span className="text-gray-400 text-xs">(Optional)</span>
-                    </Label>
-                    <div className="relative">
-                      <CreditCard className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                      <Input
-                        id="govId"
-                        type="text"
-                        placeholder="GOV-123456"
-                        className="pl-10 h-11 bg-gray-50 border-gray-200 text-gray-800 placeholder:text-gray-400 rounded-lg focus:border-[#2DC5A0] focus:ring-[#2DC5A0]"
-                        value={formData.govId}
-                        onChange={(e) => setFormData({ ...formData, govId: e.target.value })}
-                      />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label htmlFor="dob" className="text-gray-700 text-sm">
+                          Date of Birth <span className="text-red-500">*</span>
+                        </Label>
+                        <div className="relative">
+                          <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                          <Input
+                            id="dob"
+                            type="date"
+                            className="pl-10 h-11 bg-gray-50 border-gray-200 text-gray-800 rounded-lg focus:border-[#2DC5A0] focus:ring-[#2DC5A0]"
+                            value={formData.dob}
+                            onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                            required={!!formData.nin}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label htmlFor="dateOfExpiry" className="text-gray-700 text-sm">
+                          Date of Expiry <span className="text-red-500">*</span>
+                        </Label>
+                        <div className="relative">
+                          <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                          <Input
+                            id="dateOfExpiry"
+                            type="date"
+                            className="pl-10 h-11 bg-gray-50 border-gray-200 text-gray-800 rounded-lg focus:border-[#2DC5A0] focus:ring-[#2DC5A0]"
+                            value={formData.dateOfExpiry}
+                            onChange={(e) => setFormData({ ...formData, dateOfExpiry: e.target.value })}
+                            required={!!formData.nin}
+                          />
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
+
+                    <div className="space-y-1">
+                      <Label htmlFor="personalIdNumber" className="text-gray-700 text-sm">
+                        Personal ID Number <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="relative">
+                        <CreditCard className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                        <Input
+                          id="personalIdNumber"
+                          type="text"
+                          placeholder="PID123456"
+                          className="pl-10 h-11 bg-gray-50 border-gray-200 text-gray-800 placeholder:text-gray-400 rounded-lg focus:border-[#2DC5A0] focus:ring-[#2DC5A0]"
+                          value={formData.personalIdNumber}
+                          onChange={(e) => setFormData({ ...formData, personalIdNumber: e.target.value })}
+                          required={!!formData.nin}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 <Button
                   type="submit"
