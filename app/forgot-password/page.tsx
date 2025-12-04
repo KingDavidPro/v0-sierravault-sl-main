@@ -3,186 +3,149 @@
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { Shield, ArrowLeft, Mail, Phone, Lock, Eye, EyeOff, CheckCircle, AlertTriangle, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useToast } from "@/lib/use-toast"
 
-type Step = "identifier" | "validate" | "password" | "success"
+type Step = "identifier" | "otp" | "password" | "success"
+type Method = "email" | "phone"
 
 export default function ForgotPasswordPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const { showToast } = useToast()
   const [step, setStep] = useState<Step>("identifier")
+  const [method, setMethod] = useState<Method>("email")
   const [isLoading, setIsLoading] = useState(false)
   const [identifier, setIdentifier] = useState("")
-  const [token, setToken] = useState("")
+  const [maskedIdentifier, setMaskedIdentifier] = useState("")
+  const [otp, setOtp] = useState(["", "", "", ""])
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [countdown, setCountdown] = useState(300)
+  const [canResend, setCanResend] = useState(false)
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([])
 
-  // Check if token is in URL (from reset link)
+  // Countdown timer for OTP
   useEffect(() => {
-    const tokenParam = searchParams.get("token")
-    if (tokenParam) {
-      setToken(tokenParam)
-      setStep("validate")
-      // Auto-validate token
-      const validateToken = async () => {
-        setIsLoading(true)
-        try {
-          const response = await fetch("/api/auth/reset-validate", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ token: tokenParam }),
-          })
-
-          const data = await response.json()
-
-          if (!response.ok || !data.valid) {
-            showToast("error", "Invalid Token", data.error || "Invalid or expired token.")
-            setStep("identifier")
-            setIsLoading(false)
-            return
-          }
-
-          setStep("password")
-          showToast("success", "Token Valid", "You can now set your new password.")
-        } catch (error) {
-          showToast("error", "Validation Failed", "An unexpected error occurred. Please try again.")
-          setStep("identifier")
-        } finally {
-          setIsLoading(false)
-        }
-      }
-      validateToken()
+    if (step === "otp" && countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000)
+      return () => clearTimeout(timer)
+    } else if (countdown === 0) {
+      setCanResend(true)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams])
+  }, [countdown, step])
 
-  // Step 1: Request reset token
+  // Step 1: Validate Email or Phone
   const handleIdentifierSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsLoading(true)
+    setError(null)
 
-    if (!identifier) {
-      showToast("error", "Validation Error", "Please enter your email, phone, or NIN.")
-      return
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+
+    // Mock validation
+    if (identifier) {
+      // Mask the identifier for display
+      if (method === "email") {
+        const [local, domain] = identifier.split("@")
+        setMaskedIdentifier(`${local.slice(0, 2)}***@${domain}`)
+      } else {
+        setMaskedIdentifier(`${identifier.slice(0, 6)}***${identifier.slice(-2)}`)
+      }
+      setStep("otp")
+      setCountdown(300)
+    } else {
+      setError(`Please enter a valid ${method === "email" ? "email address" : "phone number"}`)
     }
 
-    setIsLoading(true)
+    setIsLoading(false)
+  }
 
-    try {
-      const response = await fetch("/api/auth/reset-request", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ identifier }),
-      })
+  // OTP handling
+  const handleOtpChange = (index: number, value: string) => {
+    if (value.length > 1) value = value.slice(-1)
+    if (!/^\d*$/.test(value)) return
 
-      const data = await response.json()
+    const newOtp = [...otp]
+    newOtp[index] = value
+    setOtp(newOtp)
+    setError(null)
 
-      if (!response.ok) {
-        showToast("error", "Request Failed", data.error || "An error occurred.")
-        setIsLoading(false)
-        return
+    if (value && index < 3) {
+      inputRefs.current[index + 1]?.focus()
+    }
+
+    if (value && index === 3) {
+      const fullOtp = newOtp.join("")
+      if (fullOtp.length === 4) {
+        handleOTPVerify(fullOtp)
       }
-
-      showToast("success", "Reset Link Sent", data.message || "If an account exists, a reset link has been sent.")
-      // Note: In production, user would receive link via email/SMS
-      // For demo, we'll show a message
-    } catch (error) {
-      showToast("error", "Request Failed", "An unexpected error occurred. Please try again.")
-    } finally {
-      setIsLoading(false)
     }
   }
 
-  // Step 2: Validate token
-  const handleValidateToken = async (tokenToValidate?: string) => {
-    const tokenValue = tokenToValidate || token
-    if (!tokenValue) return
-
-    setIsLoading(true)
-
-    try {
-      const response = await fetch("/api/auth/reset-validate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ token: tokenValue }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok || !data.valid) {
-        showToast("error", "Invalid Token", data.error || "Invalid or expired token.")
-        setStep("identifier")
-        setIsLoading(false)
-        return
-      }
-
-      setStep("password")
-      showToast("success", "Token Valid", "You can now set your new password.")
-    } catch (error) {
-      showToast("error", "Validation Failed", "An unexpected error occurred. Please try again.")
-      setStep("identifier")
-    } finally {
-      setIsLoading(false)
+  const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === "Backspace" && !otp[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus()
     }
+  }
+
+  // Step 2: Verify OTP
+  const handleOTPVerify = async (otpValue: string) => {
+    setIsLoading(true)
+    setError(null)
+
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+
+    // Mock: "1234" is correct
+    if (otpValue === "1234") {
+      setStep("password")
+    } else {
+      setError("Invalid OTP. Please enter the correct code.")
+      setOtp(["", "", "", ""])
+      inputRefs.current[0]?.focus()
+    }
+
+    setIsLoading(false)
   }
 
   // Step 3: Reset Password
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    if (!token) {
-      showToast("error", "Missing Token", "Reset token is required.")
-      return
-    }
+    setError(null)
 
     if (password !== confirmPassword) {
-      showToast("error", "Password Mismatch", "Passwords do not match.")
+      setError("Passwords do not match")
       return
     }
 
     if (password.length < 8) {
-      showToast("error", "Password Too Short", "Password must be at least 8 characters.")
+      setError("Password must be at least 8 characters")
       return
     }
 
     setIsLoading(true)
 
-    try {
-      const response = await fetch("/api/auth/reset-final", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ token, newPassword: password }),
-      })
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+    setStep("success")
 
-      const data = await response.json()
+    setIsLoading(false)
+  }
 
-      if (!response.ok) {
-        showToast("error", "Reset Failed", data.error || "An error occurred while resetting your password.")
-        setIsLoading(false)
-        return
-      }
+  const handleResend = async () => {
+    setIsLoading(true)
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    setIsLoading(false)
+    setCountdown(300)
+    setCanResend(false)
+  }
 
-      showToast("success", "Password Reset", data.message || "Password updated successfully.")
-      setStep("success")
-    } catch (error) {
-      showToast("error", "Reset Failed", "An unexpected error occurred. Please try again.")
-    } finally {
-      setIsLoading(false)
-    }
+  const formatCountdown = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, "0")}`
   }
 
   return (
@@ -237,23 +200,23 @@ export default function ForgotPasswordPage() {
 
           {/* Step Indicator */}
           <div className="flex items-center justify-center gap-2 mb-8">
-            {["identifier", "validate", "password"].map((s, i) => (
+            {["identifier", "otp", "password"].map((s, i) => (
               <div key={s} className="flex items-center">
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                     step === s || (step === "success" && i === 2)
                       ? "bg-[#2DC5A0] text-white"
-                      : ["validate", "password", "success"].indexOf(step) > i
+                      : ["otp", "password", "success"].indexOf(step) > i
                         ? "bg-[#2DC5A0]/20 text-[#2DC5A0]"
                         : "bg-gray-100 text-gray-400"
                   }`}
                 >
-                  {["validate", "password", "success"].indexOf(step) > i ? <CheckCircle className="h-4 w-4" /> : i + 1}
+                  {["otp", "password", "success"].indexOf(step) > i ? <CheckCircle className="h-4 w-4" /> : i + 1}
                 </div>
                 {i < 2 && (
                   <div
                     className={`w-8 h-0.5 ${
-                      ["validate", "password", "success"].indexOf(step) > i ? "bg-[#2DC5A0]" : "bg-gray-200"
+                      ["otp", "password", "success"].indexOf(step) > i ? "bg-[#2DC5A0]" : "bg-gray-200"
                     }`}
                   />
                 )}
@@ -261,25 +224,59 @@ export default function ForgotPasswordPage() {
             ))}
           </div>
 
-          {/* Step 1: Request Reset */}
+          {/* Error */}
+          {error && (
+            <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 flex items-center gap-3">
+              <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0" />
+              <p className="text-sm font-medium text-red-800">{error}</p>
+            </div>
+          )}
+
+          {/* Step 1: Email or Phone */}
           {step === "identifier" && (
             <>
               <div className="text-center mb-6">
                 <h1 className="text-2xl font-bold text-gray-800">Forgot Password?</h1>
-                <p className="mt-2 text-gray-500">Enter your email, phone, or NIN to reset your password</p>
+                <p className="mt-2 text-gray-500">Enter your email or phone to reset your password</p>
+              </div>
+
+              {/* Method Toggle */}
+              <div className="flex bg-gray-100 rounded-lg p-1 mb-6">
+                <button
+                  type="button"
+                  onClick={() => setMethod("email")}
+                  className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+                    method === "email" ? "bg-white text-gray-800 shadow-sm" : "text-gray-500"
+                  }`}
+                >
+                  Email
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMethod("phone")}
+                  className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+                    method === "phone" ? "bg-white text-gray-800 shadow-sm" : "text-gray-500"
+                  }`}
+                >
+                  Phone
+                </button>
               </div>
 
               <form onSubmit={handleIdentifierSubmit} className="space-y-5">
                 <div className="space-y-2">
                   <Label htmlFor="identifier" className="text-gray-700">
-                    Email, Phone, or NIN
+                    {method === "email" ? "Email Address" : "Phone Number"}
                   </Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    {method === "email" ? (
+                      <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    ) : (
+                      <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    )}
                     <Input
                       id="identifier"
-                      type="text"
-                      placeholder="your.email@example.com, +232 76 123 4567, or NIN"
+                      type={method === "email" ? "email" : "tel"}
+                      placeholder={method === "email" ? "your.email@example.com" : "+232 76 123 4567"}
                       className="pl-10 h-12 bg-gray-50 border-gray-200 text-gray-800 placeholder:text-gray-400 rounded-lg focus:border-[#2DC5A0] focus:ring-[#2DC5A0]"
                       value={identifier}
                       onChange={(e) => setIdentifier(e.target.value)}
@@ -293,21 +290,68 @@ export default function ForgotPasswordPage() {
                   className="w-full h-12 bg-gradient-to-r from-[#2DC5A0] to-[#25a386] text-white hover:from-[#25a386] hover:to-[#2DC5A0] font-semibold rounded-lg shadow-lg shadow-[#2DC5A0]/30"
                   disabled={isLoading}
                 >
-                  {isLoading ? "Sending..." : "Send Reset Link"}
+                  {isLoading ? "Verifying..." : "Continue"}
                 </Button>
               </form>
             </>
           )}
 
-          {/* Step 2: Validate Token (usually auto-handled from URL) */}
-          {step === "validate" && (
-            <div className="text-center">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#2DC5A0]/10">
-                <Lock className="h-7 w-7 text-[#2DC5A0]" />
+          {/* Step 2: OTP */}
+          {step === "otp" && (
+            <>
+              <div className="text-center mb-6">
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#2DC5A0]/10">
+                  {method === "email" ? (
+                    <Mail className="h-7 w-7 text-[#2DC5A0]" />
+                  ) : (
+                    <Phone className="h-7 w-7 text-[#2DC5A0]" />
+                  )}
+                </div>
+                <h1 className="text-2xl font-bold text-gray-800">Verify OTP</h1>
+                <p className="mt-2 text-gray-500">
+                  Enter the 4-digit code sent to <span className="font-medium text-gray-700">{maskedIdentifier}</span>
+                </p>
               </div>
-              <h1 className="text-2xl font-bold text-gray-800">Validating Token</h1>
-              <p className="mt-2 text-gray-500">Please wait while we validate your reset token...</p>
-            </div>
+
+              <div className="flex justify-center gap-3 mb-6">
+                {otp.map((digit, index) => (
+                  <input
+                    key={index}
+                    ref={(el) => {
+                      inputRefs.current[index] = el
+                    }}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleOtpChange(index, e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(index, e)}
+                    disabled={isLoading}
+                    className="w-14 h-14 text-center text-2xl font-bold border-2 border-gray-200 rounded-xl bg-gray-50 text-gray-800 focus:border-[#2DC5A0] focus:ring-2 focus:ring-[#2DC5A0]/20 focus:outline-none"
+                  />
+                ))}
+              </div>
+
+              {isLoading && (
+                <div className="flex items-center justify-center gap-2 text-gray-500 mb-4">
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <span>Verifying...</span>
+                </div>
+              )}
+
+              <div className="text-center">
+                <p className="text-sm text-gray-500 mb-2">Didn't receive the code?</p>
+                {canResend ? (
+                  <Button variant="ghost" className="text-[#2DC5A0]" onClick={handleResend} disabled={isLoading}>
+                    Resend code
+                  </Button>
+                ) : (
+                  <p className="text-sm text-gray-500">
+                    Resend in <span className="text-[#2DC5A0] font-medium">{formatCountdown(countdown)}</span>
+                  </p>
+                )}
+              </div>
+            </>
           )}
 
           {/* Step 3: New Password */}
@@ -320,15 +364,6 @@ export default function ForgotPasswordPage() {
                 <h1 className="text-2xl font-bold text-gray-800">Create New Password</h1>
                 <p className="mt-2 text-gray-500">Enter your new password below</p>
               </div>
-
-              {!token && (
-                <div className="mb-6 p-4 rounded-lg bg-amber-50 border border-amber-200 flex items-center gap-3">
-                  <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0" />
-                  <p className="text-sm font-medium text-amber-800">
-                    No reset token found. Please use the reset link sent to your email/phone.
-                  </p>
-                </div>
-              )}
 
               <form onSubmit={handlePasswordReset} className="space-y-5">
                 <div className="space-y-2">

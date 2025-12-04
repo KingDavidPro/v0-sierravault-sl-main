@@ -1,13 +1,11 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Eye, EyeOff, Shield, Loader2, AlertTriangle, HelpCircle, ChevronDown, User, Lock } from "lucide-react"
-import { govAuthLogin } from "@/lib/gov-api-mock"
-import { mockAgencies } from "@/lib/gov-mock-data"
+import { MockAuthService } from "@/lib/mock-auth"
 
 export default function GovLoginPage() {
   const router = useRouter()
@@ -32,24 +30,15 @@ export default function GovLoginPage() {
     setError("")
 
     try {
-      const response = await govAuthLogin({
-        agencyId,
-        staffId,
-        password,
-      })
+      const response = await MockAuthService.loginGov(agencyId, staffId, password)
 
-      if (response.success && response.sendOtp) {
-        sessionStorage.setItem("gov_temp_session", response.sessionTempId || "")
-        sessionStorage.setItem("gov_staff_id", staffId)
-        router.push("/gov/verify-otp")
+      if (response.success) {
+        // Success - redirect to gov dashboard
+        router.push("/gov/dashboard")
       } else {
         setError(response.error || "Login failed")
-        if (response.attemptsRemaining !== undefined) {
-          setAttemptsRemaining(response.attemptsRemaining)
-        }
-        if (response.requiresUnlock) {
-          setIsLocked(true)
-        }
+        setAttemptsRemaining(null)
+        setIsLocked(false)
       }
     } catch (err) {
       setError("An unexpected error occurred")
@@ -57,6 +46,12 @@ export default function GovLoginPage() {
       setLoading(false)
     }
   }
+
+  const agencies = [
+    { id: "agency_moi", name: "Ministry of Internal Affairs", code: "MOI" },
+    { id: "agency_land", name: "Land Registry", code: "LAND" },
+    { id: "agency_health", name: "Ministry of Health", code: "HEALTH" },
+  ]
 
   return (
     <div className="min-h-screen bg-[#0A2A43] flex items-center justify-center p-4 relative overflow-hidden">
@@ -231,7 +226,7 @@ export default function GovLoginPage() {
                   aria-required="true"
                 >
                   <option value="">Select your agency...</option>
-                  {mockAgencies.map((agency) => (
+                  {agencies.map((agency) => (
                     <option key={agency.id} value={agency.id}>
                       {agency.name} ({agency.code})
                     </option>
