@@ -4,6 +4,7 @@ import { Sidebar } from "@/components/sidebar"
 import { ChatWidget } from "@/components/chatbot/chat-widget"
 import { Button } from "@/components/ui/button"
 import { Menu } from "lucide-react"
+import {UserProvider} from "@/context/UserContext";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const [mobileOpen, setMobileOpen] = useState(false)
@@ -27,7 +28,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         <Menu className="h-5 w-5" />
                     </Button>
                 </div>
-                <div className="min-h-screen">{children}</div>
+                <div className="min-h-screen">
+                    <UserProvider>
+                        {children}
+                    </UserProvider>
+                </div>
             </main>
 
             <ChatWidget />

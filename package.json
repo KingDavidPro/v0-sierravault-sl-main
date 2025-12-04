@@ -52,6 +52,7 @@
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.454.0",
     "mongoose": "^9.0.0",
+    "multer": "^2.0.2",
     "next": "16.0.7",
     "next-themes": "latest",
     "react": "19.2.0",
@@ -70,6 +71,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.9",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.0.0",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
