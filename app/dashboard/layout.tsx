@@ -1,25 +1,36 @@
-import type { ReactNode } from "react";
-import { Sidebar } from "@/components/sidebar";
-import { ChatWidget } from "@/components/chatbot/chat-widget";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import jwt from "jsonwebtoken";
+"use client"
+import { useState } from "react"
+import { Sidebar } from "@/components/sidebar"
+import { ChatWidget } from "@/components/chatbot/chat-widget"
+import { Button } from "@/components/ui/button"
+import { Menu } from "lucide-react"
 
-interface DashboardLayoutProps {
-    children: ReactNode;
-}
-
-export default async function DashboardLayout({ children }: DashboardLayoutProps) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+    const [mobileOpen, setMobileOpen] = useState(false)
 
     return (
         <div className="min-h-screen bg-background flex">
-            <Sidebar />
+            {/* Mobile overlay */}
+            {mobileOpen && (
+                <div
+                    className="fixed inset-0 z-30 bg-black/30 lg:hidden"
+                    onClick={() => setMobileOpen(false)}
+                />
+            )}
 
-            <main className="flex-1 lg:pl-64 p-6">
+            <Sidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
+
+            <main className="flex-1 lg:pl-3 p-4 sm:p-6">
+                {/* Mobile menu button */}
+                <div className="lg:hidden mb-4">
+                    <Button variant="ghost" onClick={() => setMobileOpen(true)}>
+                        <Menu className="h-5 w-5" />
+                    </Button>
+                </div>
                 <div className="min-h-screen">{children}</div>
             </main>
 
             <ChatWidget />
         </div>
-    );
+    )
 }
