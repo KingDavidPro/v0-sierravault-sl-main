@@ -1,9 +1,9 @@
 // app/api/upload/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import path from "path";
-import fs from "fs";
 import mongoose from "mongoose";
+import crypto from "crypto";
 import Vault from "@/models/Vault";
+import {supabase} from "@/lib/superbaseClient";
 
 // Connect to MongoDB helper
 async function connectDB() {
@@ -23,14 +23,23 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
         }
 
-        // Save file to public/uploads
-        const uploadsDir = path.join(process.cwd(), "public/uploads");
-        if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-
-        const fileName = `${Date.now()}-${file.name}`;
-        const filePath = path.join(uploadsDir, fileName);
+        // Convert File to Buffer
         const buffer = Buffer.from(await file.arrayBuffer());
-        fs.writeFileSync(filePath, buffer);
+
+        // Generate unique filename
+        const filename = `${Date.now()}-${file.name}`;
+
+        // Upload to Supabase bucket "documents"
+        const { data, error: uploadError } = await supabase.storage
+            .from("documents")
+            .upload(filename, buffer, { contentType: file.type });
+
+        if (uploadError) {
+            console.error("Supabase upload error:", uploadError);
+            return NextResponse.json({ error: uploadError.message }, { status: 500 });
+        }
+
+        const fileUrl = `${process.env.SUPABASE_URL}/storage/v1/object/public/documents/${filename}`;
 
         // Connect to MongoDB
         await connectDB();
@@ -39,7 +48,7 @@ export async function POST(req: NextRequest) {
         let vault = await Vault.findOne({ userId });
         const docEntry = {
             label: documentType,
-            url: `/uploads/${fileName}`,
+            url: fileUrl,
             type: file.type,
             uploadedAt: new Date(),
         };
@@ -51,8 +60,8 @@ export async function POST(req: NextRequest) {
             vault = await Vault.create({ userId, documents: [docEntry] });
         }
 
-        // Mock blockchain hash
-        const blockchainHash = "0x" + fileName.split(".")[0];
+        // Blockchain hash (SHA256)
+        const blockchainHash = crypto.createHash("sha256").update(buffer).digest("hex");
 
         return NextResponse.json({
             message: "Uploaded successfully",

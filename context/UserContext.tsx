@@ -1,64 +1,68 @@
-"use client";
+"use client"
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react"
 
-interface User {
-    _id: string;
-    email: string;
-    telephone: string;
-    nin?: string;
-    vaultId: string;
+interface DocumentType {
+    label: string
+    url: string
+    type: string
+    uploadedAt: Date
+}
+
+interface UserType {
+    _id: string
+    email: string
+    telephone: string
+    nin?: string
+    vaultId: string
+    documents: DocumentType[]
 }
 
 interface UserContextType {
-    user: User | null;
-    loading: boolean;
-    refreshUser: () => Promise<void>;
+    user: UserType | null
+    setUser: (user: UserType | null) => void
+    loading: boolean
+    refreshUser: () => Promise<void>
 }
 
-const UserContext = createContext<UserContextType>({
-    user: null,
-    loading: true,
-    refreshUser: async () => {},
-});
+const UserContext = createContext<UserContextType | undefined>(undefined)
 
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [user, setUser] = useState<User | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [user, setUser] = useState<UserType | null>(null)
+    const [loading, setLoading] = useState(true) // <-- loading state
 
     const fetchUser = async () => {
-        setLoading(true);
+        setLoading(true)
         try {
-            const res = await fetch("/api/auth/me", {
-                cache: "no-store",
-            });
+            const res = await fetch("/api/auth/me")
             if (res.ok) {
-                const data = await res.json();
-                setUser(data);
+                const data = await res.json()
+                setUser(data.user)
             } else {
-                setUser(null);
+                setUser(null)
             }
         } catch (err) {
-            console.error("Failed to fetch user:", err);
-            setUser(null);
+            setUser(null)
         } finally {
-            setLoading(false);
+            setLoading(false)
         }
-    };
+    }
 
     useEffect(() => {
-        fetchUser();
-    }, []);
+        fetchUser()
+    }, [])
 
-    const refreshUser = async () => {
-        await fetchUser();
-    };
+    const refreshUser = async () => fetchUser()
 
     return (
-        <UserContext.Provider value={{ user, loading, refreshUser }}>
+        <UserContext.Provider value={{ user, setUser, loading, refreshUser }}>
             {children}
         </UserContext.Provider>
-    );
-};
+    )
+}
 
-export const useUser = () => useContext(UserContext);
+export const useUser = () => {
+    const context = useContext(UserContext)
+    if (!context) throw new Error("useUser must be used within a UserProvider")
+    return context
+}
