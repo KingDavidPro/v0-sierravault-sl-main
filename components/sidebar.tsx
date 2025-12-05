@@ -23,7 +23,7 @@ const sidebarLinks = [
   { href: "/dashboard/documents", label: "My Documents", icon: FileText },
   { href: "/dashboard/upload", label: "Upload", icon: Upload },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
-  { href: "/dashboard/help", label: "Help Center", icon: HelpCircle },
+  { href: "/dashboard/verify", label: "Verify", icon: HelpCircle },
 ];
 
 interface SidebarProps {

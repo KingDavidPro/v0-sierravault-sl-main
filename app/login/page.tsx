@@ -59,7 +59,7 @@ export default function LoginPage() {
       showToast("success", "Login Successful", "Welcome back!")
       
       setTimeout(() => {
-        router.push("/dashboard")
+        router.push("/dashboard/me")
       }, 1000)
     } catch (error) {
       showToast("error", "Login Failed", "An unexpected error occurred. Please try again.")
