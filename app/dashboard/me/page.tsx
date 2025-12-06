@@ -1,3 +1,5 @@
+"use client"
+
 import { FileText, Upload, Share2, Shield, Plus, ArrowRight } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
