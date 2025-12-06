@@ -6,6 +6,10 @@ import NIN from "@/models/NIN";
 import Vault from "@/models/Vault";
 import dbConnect from "@/lib/dbConnect";
 
+import nacl from "tweetnacl";
+import bs58 from "bs58"; // ✅ Added for Base58 encoding
+import { encryptPrivateKey } from "@/utils/encryption";
+
 export async function POST(req: NextRequest) {
   await dbConnect();
 
@@ -21,53 +25,51 @@ export async function POST(req: NextRequest) {
     personalIdNumber,
   } = body;
 
-  // Basic required fields
   if (!email || !password || !telephone) {
     return NextResponse.json(
-      { error: "Email, password and telephone are required." },
-      { status: 400 }
+        { error: "Email, password and telephone are required." },
+        { status: 400 }
     );
   }
 
-  // Check for duplicate user
+  // Prevent duplicates
   const existing = await User.findOne({
     $or: [{ email }, { telephone }, ...(nin ? [{ nin }] : [])],
   });
 
   if (existing) {
     return NextResponse.json(
-      { error: "User already exists with this email/telephone/NIN." },
-      { status: 400 }
+        { error: "User already exists with this email/telephone/NIN." },
+        { status: 400 }
     );
   }
 
-  // If NIN was provided, must validate with extra fields
+  // NIN validation
   if (nin) {
     if (!surname || !dob || !dateOfExpiry || !personalIdNumber) {
       return NextResponse.json(
-        { error: "Complete NIN verification details required." },
-        { status: 400 }
+          { error: "Complete NIN verification details required." },
+          { status: 400 }
       );
     }
 
     const ninRecord = await NIN.findOne({ nin });
     if (!ninRecord) {
       return NextResponse.json(
-        { error: "NIN not found in national registry." },
-        { status: 400 }
+          { error: "NIN not found in national registry." },
+          { status: 400 }
       );
     }
 
-    // Validate identity fields
     if (
-      ninRecord.surname.toLowerCase() !== surname.toLowerCase() ||
-      ninRecord.dob.toISOString() !== new Date(dob).toISOString() ||
-      ninRecord.dateOfExpiry.toISOString() !== new Date(dateOfExpiry).toISOString() ||
-      ninRecord.personalIdNumber !== personalIdNumber
+        ninRecord.surname.toLowerCase() !== surname.toLowerCase() ||
+        ninRecord.dob.toISOString() !== new Date(dob).toISOString() ||
+        ninRecord.dateOfExpiry.toISOString() !== new Date(dateOfExpiry).toISOString() ||
+        ninRecord.personalIdNumber !== personalIdNumber
     ) {
       return NextResponse.json(
-        { error: "NIN verification details do not match the registry." },
-        { status: 400 }
+          { error: "NIN verification details do not match the registry." },
+          { status: 400 }
       );
     }
   }
@@ -75,19 +77,38 @@ export async function POST(req: NextRequest) {
   // Hash password
   const hashed = await bcrypt.hash(password, 12);
 
-  // Create vault first (without userId initially)
+  // Create vault
   const vault = await Vault.create({ documents: [] });
 
-  // Create user
+  // -------------------------------------------------------
+  // 🔥 Generate Wallet (ED25519)
+  // -------------------------------------------------------
+  const keypair = nacl.sign.keyPair();
+  const publicKeyBase58 = bs58.encode(Buffer.from(keypair.publicKey)); // ✅ Fixed
+
+  // Encrypt private key
+  const { encrypted, iv } = await encryptPrivateKey(
+      Buffer.from(keypair.secretKey).toString("base64")
+  );
+
+  // -------------------------------------------------------
+  // Create user with wallet attached
+  // -------------------------------------------------------
   const user = await User.create({
     email,
     password: hashed,
     telephone,
     nin: nin || undefined,
     vaultId: vault._id,
+
+    wallet: {
+      publicKey: publicKeyBase58,
+      encryptedPrivateKey: encrypted,
+      iv,
+      createdAt: new Date(),
+    },
   });
 
-  // Update vault with userId after user is created
   vault.userId = user._id;
   await vault.save();
 
@@ -104,6 +125,7 @@ export async function POST(req: NextRequest) {
       telephone: user.telephone,
       nin: user.nin,
       vaultId: user.vaultId,
+      walletPublicKey: user.wallet.publicKey,
     },
   });
 }
