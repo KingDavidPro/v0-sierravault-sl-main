@@ -16,7 +16,8 @@ import {
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/lib/use-toast"
+import { useToast } from "@/lib/use-toast";
+import { useUser } from "@/context/UserContext";
 
 const sidebarLinks = [
   { href: "/dashboard/me", label: "Dashboard", icon: LayoutDashboard },
@@ -27,22 +28,22 @@ const sidebarLinks = [
 ];
 
 interface SidebarProps {
-  userName?: string;
-  userEmail?: string;
   mobileOpen?: boolean;
   setMobileOpen?: (open: boolean) => void;
+  collapsed?: boolean;
+  setCollapsed?: (value: boolean) => void;
 }
 
 export function Sidebar({
-                          userName = "David Conteh",
-                          userEmail = "david@example.com",
                           mobileOpen = false,
                           setMobileOpen,
+                          collapsed = false,
+                          setCollapsed,
                         }: SidebarProps) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
   const [windowWidth, setWindowWidth] = useState(0);
   const { showToast } = useToast();
+  const { user, refreshUser } = useUser();
 
   // Track window width safely for SSR
   useEffect(() => {
@@ -54,36 +55,41 @@ export function Sidebar({
 
   const handleChevronClick = () => {
     if (windowWidth >= 1024) {
-      setCollapsed(!collapsed);
+      setCollapsed && setCollapsed(!collapsed);
     } else {
       setMobileOpen && setMobileOpen(false);
     }
   };
 
-  const handleLogout = () => {
-    // Clear stored token and user info
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+  const handleLogout = async () => {
+    try {
+      const res = await fetch("/api/auth/logout", { method: "POST" })
+      if (res.ok) {
+        refreshUser() // Update context to reflect logged out state
+        window.location.href = "/login"
+      } else {
+        console.error("Logout failed")
+      }
+    } catch (err) {
+      console.error("Logout error:", err)
+    }
+  }
 
-    // Show success toast
-    showToast("success", "Logged Out", "You have been successfully logged out.");
 
-    // Redirect to login
-    window.location.href = "/login";
-  };
+  const userName = user?.email ? user.email.split("@")[0] : "Guest";
+  const userEmail = user?.email || "guest@example.com";
 
   return (
       <aside
           className={cn(
-              "fixed top-0 left-0 z-40 h-screen border-r border-border bg-sidebar transition-width duration-300 ease-in-out",
+              "fixed top-0 left-0 z-50 h-screen border-r border-border bg-sidebar flex flex-col transition-all duration-300 ease-in-out",
               collapsed ? "w-24" : "w-64",
-              "lg:translate-x-0",
               mobileOpen ? "translate-x-0" : "-translate-x-full",
-              "lg:relative"
+              "lg:translate-x-0"
           )}
       >
-        {/* Logo & collapse button */}
-        <div className="flex h-16 items-center border-b border-border px-4">
+        {/* Logo & Collapse Button */}
+        <div className="flex h-16 items-center border-b border-border px-4 flex-shrink-0">
           <Link
               href="/dashboard/me"
               className={cn(
@@ -117,20 +123,8 @@ export function Sidebar({
           </Button>
         </div>
 
-        {/* Mobile chevron */}
-        {collapsed && windowWidth < 1024 && (
-            <Button
-                variant="ghost"
-                size="icon"
-                className="mx-auto mt-2 h-8 w-8 text-muted-foreground hover:text-foreground"
-                onClick={() => setMobileOpen && setMobileOpen(false)}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-        )}
-
-        {/* Scrollable content */}
-        <div className="flex flex-col flex-1 overflow-y-auto p-2">
+        {/* Scrollable Navigation */}
+        <div className="flex-1 flex flex-col px-2 py-4 overflow-y-auto">
           <nav className="flex-1 space-y-1">
             {sidebarLinks.map((link) => {
               const isActive =
@@ -156,14 +150,14 @@ export function Sidebar({
             })}
           </nav>
 
-          {/* User section */}
-          <div className="border-t border-border p-4 flex flex-col items-start justify-end h-[62vh]">
+          {/* User Info & Logout pushed to bottom */}
+          <div className="mt-auto flex flex-col items-start overflow-x-hidden px-2 py-4">
             <div className={cn("flex items-center gap-3", collapsed && "justify-center")}>
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-teal flex-shrink-0">
                 <span className="text-sm font-semibold text-navy-dark">{userName.charAt(0)}</span>
               </div>
               {!collapsed && (
-                  <div className="flex-1 min-w-0 overflow-hidden">
+                  <div className="flex-1 min-w-0 flex-wrap">
                     <p className="truncate text-sm font-medium text-foreground">{userName}</p>
                     <p className="truncate text-xs text-muted-foreground">{userEmail}</p>
                   </div>
